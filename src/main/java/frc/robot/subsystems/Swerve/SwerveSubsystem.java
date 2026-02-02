@@ -2,7 +2,7 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
-package frc.robot.subsystems;
+package frc.robot.subsystems.Swerve;
 
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
@@ -71,16 +71,6 @@ public class SwerveSubsystem extends SubsystemBase {
 
   private final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(DriveConstants.autoLocations);
 
-  // Odometry class for tracking robot pose
-  SwerveDriveOdometry odometry = new SwerveDriveOdometry(
-      DriveConstants.kDriveKinematics,
-      gyro.getRotation2d(), // Phoenix 6 的 Pigeon2 直接支援 getRotation2d()
-      new SwerveModulePosition[] {
-          frontLeft.getPosition(),
-          frontRight.getPosition(),
-          backLeft.getPosition(),
-          backRight.getPosition()
-      });
 
   public SwerveSubsystem() {
     RobotConfig config = null;
@@ -151,20 +141,13 @@ public class SwerveSubsystem extends SubsystemBase {
     return new Rotation2d(rad);
   }
 
-  public Pose2d getPose() {
-    return odometry.getPoseMeters();
-  }
+    public Pose2d getPose() {
+        return poseEstimator.getEstimatedPosition();
+    }
 
   @Override
   public void periodic() {
-    odometry.update(
-        gyro.getRotation2d(),
-        new SwerveModulePosition[] {
-            frontLeft.getPosition(),
-            frontRight.getPosition(),
-            backLeft.getPosition(),
-            backRight.getPosition()
-        });
+    getPose();
   }
 
   public void stopModules() {
@@ -198,17 +181,10 @@ public class SwerveSubsystem extends SubsystemBase {
     };
   }
 
-  public void resetOdometry(Pose2d pose) {
-    odometry.resetPosition(
-        gyro.getRotation2d(),
-        new SwerveModulePosition[] {
-            frontLeft.getPosition(),
-            frontRight.getPosition(),
-            backLeft.getPosition(),
-            backRight.getPosition()
-        },
-        pose);
-  }
+    public void resetOdometry(Pose2d pose) {
+        poseEstimator.resetPose(pose);
+    }
+
 
   public void drive(double xSpeed, double ySpeed, double rot) {
     xSpeed = MathUtil.applyDeadband(xSpeed, 0.05);
