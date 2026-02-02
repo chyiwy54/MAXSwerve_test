@@ -32,31 +32,26 @@ import java.util.List;
 import com.pathplanner.lib.auto.AutoBuilder;
 
 public class RobotContainer {
-       private final SwerveSubsystem swerve = new SwerveSubsystem();
-        private final Driver  driver = new Driver();
+        private final SwerveSubsystem swerveSubsystem = new SwerveSubsystem();
+        private final Driver driver = new Driver(0);
         private final Vision vision = new Vision();
         private final SendableChooser<Command> autoChooser;
 
- 
         public RobotContainer() {
-                configureButtonBindings();
-                this.swerve.setDefaultCommand(new SwerveJoystickCmd(
-                                this.swerve,
-                                this.driver::getXLimiter,
-                                this.driver::getYLimiter,
-                                this.driver::getTurningLimiter,
-                                this.driver::getLeftBumperButton));
-               
+                configureBindings();
+
+                swerveSubsystem.setDefaultCommand(new SwerveJoystickCmd(
+                                swerveSubsystem,
+                                driver));
+
                 autoChooser = AutoBuilder.buildAutoChooser();
                 SmartDashboard.putData("Auto Mode", autoChooser);
         }
 
-        
-        private void configureButtonBindings() {
-                new Trigger(this.driver::getStartButton)
-                                .onTrue(new InstantCommand(() -> swerve.zeroHeading()));
-                new Trigger(this.driver::getXButton)
-                                .onTrue(new InstantCommand(() -> swerve.setX()));
+        private void configureBindings() {
+                // 按下 Y 鍵歸零陀螺儀
+                new JoystickButton(driver, XboxController.Button.kY.value)
+                                .onTrue(swerveSubsystem.runOnce(() -> swerveSubsystem.zeroHeading()));
         }
 
         public Command getAutonomousCommand() {
