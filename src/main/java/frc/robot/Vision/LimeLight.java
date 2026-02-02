@@ -88,11 +88,50 @@ public class LimeLight extends SubsystemBase {
                 mt2.pose, // 視覺算出的 Pose2d
                 mt2.timestampSeconds, // 這是正確的拍攝時間 (Latency Compensated)
                 VecBuilder.fill(xyStds, xyStds, Units.degreesToRadians(degStds)));
-
     }
 
     // 提供給外部使用的 Getter
     public int getTagId() {
         return tagId;
+    }
+    public boolean resetPoseToVision() {
+        // 1. 確保 Limelight 收到最新的 Gyro 數據 (雖然 periodic 會跑，但為了保險再送一次)
+        LimelightHelpers.SetRobotOrientation(
+                this.limelightName,
+                this.gyro.getYaw().getValueAsDouble(),
+                this.gyro.getAngularVelocityZWorld().getValueAsDouble(),
+                this.gyro.getPitch().getValueAsDouble(),
+                this.gyro.getAngularVelocityYWorld().getValueAsDouble(),
+                this.gyro.getRoll().getValueAsDouble(),
+                this.gyro.getAngularVelocityXWorld().getValueAsDouble());
+
+        // 2. 取得 Pose Estimate (建議初始重設使用 MegaTag1 或 MegaTag2 皆可，這裡沿用你的 MT2)
+        LimelightHelpers.PoseEstimate mt2 = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2(limelightName);
+
+        // 3. 基本檢查
+        if (mt2 == null || mt2.tagCount == 0) {
+            return false;
+        }
+
+        // 4. 安全過濾：初始重設時，我們希望數據非常準確
+        // 如果距離 Tag 太遠 (例如大於 4 公尺)，誤差會變大，建議不要重設
+        if (mt2.avgTagDist > 4.0) {
+            return false;
+        }
+
+        // 檢查座標是否在場地內
+        if (mt2.pose.getX() < 0 || mt2.pose.getX() > FieldConstants.fieldLength ||
+            mt2.pose.getY() < 0 || mt2.pose.getY() > FieldConstants.fieldWidth) {
+            return false;
+        }
+
+        // 5. 執行重設
+        // 這裡呼叫 drive 的 resetOdometry，這會強制把機器人座標瞬移到視覺看到的地方
+        drive.resetOdometry(mt2.pose);
+        
+        // (選用) 如果你想在 Dashboard 上看到重設成功的訊息
+        System.out.println("Odometry reset to vision pose: " + mt2.pose.toString());
+        
+        return true;
     }
 }
