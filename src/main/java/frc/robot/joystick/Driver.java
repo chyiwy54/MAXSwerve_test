@@ -16,7 +16,6 @@ public class Driver extends XboxController {
 
     public Driver(int port) { // 建議加入 port 參數增加彈性，或者維持 super(0)
         super(port);
-        // 初始化時乘上倍率
         this.xLimiter = new SlewRateLimiter(DriveConstants.kMaxSpeedMetersPerSecond * kRateMultiplier);
         this.yLimiter = new SlewRateLimiter(DriveConstants.kMaxSpeedMetersPerSecond * kRateMultiplier);
         this.turningLimiter = new SlewRateLimiter(DriveConstants.kMaxAngularSpeed * kRateMultiplier);
