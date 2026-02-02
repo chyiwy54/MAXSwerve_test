@@ -27,6 +27,7 @@ public class SwerveJoystickCmd extends Command {
 
     @Override
     public void execute() {
+        
        if (Robot.isSimulation()) {
             this.swerveSubsystem.simDrive(this.xSpdFunction.get(), this.ySpdFunction.get(), this.turningSpdFunction.get());
             return;

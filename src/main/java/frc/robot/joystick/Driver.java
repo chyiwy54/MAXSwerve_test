@@ -16,17 +16,17 @@ public class Driver extends XboxController {
     }
 
     public double getXLimiter() {
-        double speed = MathUtil.applyDeadband(this.getLeftY(),0.1);
+        double speed = MathUtil.applyDeadband(this.getLeftY(),0.05);
         return this.xLimiter.calculate(-speed * DriveConstants.kMaxSpeedMetersPerSecond);
     }
 
     public double getYLimiter() {
-        double speed = MathUtil.applyDeadband(this.getLeftX(),0.1);
+        double speed = MathUtil.applyDeadband(this.getLeftX(),0.05);
         return this.yLimiter.calculate(-speed *  DriveConstants.kMaxSpeedMetersPerSecond);
     }
 
     public double getTurningLimiter() {
-        double speed = MathUtil.applyDeadband(this.getRightX(),0.1);
+        double speed = MathUtil.applyDeadband(this.getRightX(),0.05);
         return this.turningLimiter.calculate(-speed * DriveConstants.kMaxAngularSpeed);
     }
 }

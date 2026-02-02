@@ -7,6 +7,7 @@ package frc.robot.subsystems;
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -72,7 +73,7 @@ public class SwerveSubsystem extends SubsystemBase {
           backLeft.getPosition(),
           backRight.getPosition()
       });
-  private final PIDController pidController = new PIDController(0.2, 0.0, 0.0);
+  private final PIDController pidController = new PIDController(0.04, 0.0, 0.0);
   StructArrayPublisher<SwerveModuleState> publisher = NetworkTableInstance.getDefault()
       .getStructArrayTopic("MyStates", SwerveModuleState.struct).publish();
   StructPublisher<Pose2d> realSwerve = NetworkTableInstance.getDefault()
@@ -113,8 +114,8 @@ public class SwerveSubsystem extends SubsystemBase {
         this::getChassisSpeeds,
         this::setChassisSpeeds,
         new PPHolonomicDriveController(
-            new PIDConstants(0.5, 0.0, 0.0),
-            new PIDConstants(0.5, 0.0, 0.0)),
+            new PIDConstants(0.1, 0.0, 0.0),
+            new PIDConstants(0.1, 0.0, 0.0)),
         config,
         () -> {
           var alliance = DriverStation.getAlliance();
@@ -301,6 +302,9 @@ public class SwerveSubsystem extends SubsystemBase {
    * @param fieldRelative 所提供的 x 和 y 速度是否相對於場地。
    */
   public void drive(double xSpeed, double ySpeed, double rot, boolean fieldRelative) {
+    xSpeed = MathUtil.applyDeadband(xSpeed, 0.05); // 0.05 是死區大小，可依搖桿狀況調整
+    ySpeed = MathUtil.applyDeadband(ySpeed, 0.05);
+    rot = MathUtil.applyDeadband(rot, 0.05);
     // 將命令速度轉換為底盤的正確單位
     double xSpeedDelivered = xSpeed * DriveConstants.kMaxSpeedMetersPerSecond;
     double ySpeedDelivered = ySpeed * DriveConstants.kMaxSpeedMetersPerSecond;
