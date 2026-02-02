@@ -4,7 +4,10 @@
 
 package frc.robot;
 
+import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
@@ -39,6 +42,13 @@ public final class Constants {
         new Translation2d(kWheelBase / 2, -kTrackWidth / 2),
         new Translation2d(-kWheelBase / 2, kTrackWidth / 2),
         new Translation2d(-kWheelBase / 2, -kTrackWidth / 2));
+
+    public static final Translation2d[] autoLocations = new Translation2d[] {
+        new Translation2d(kWheelBase / 2, kTrackWidth / 2),
+        new Translation2d(kWheelBase / 2, -kTrackWidth / 2),
+        new Translation2d(-kWheelBase / 2, kTrackWidth / 2),
+        new Translation2d(-kWheelBase / 2, -kTrackWidth / 2) // Index 3: BR (-X, -Y) 右後
+    };
 
     // Angular offsets of the modules relative to the chassis in radians
     public static final double kFrontLeftChassisAngularOffset = -Math.PI / 2;
@@ -101,4 +111,64 @@ public final class Constants {
     public static final double kFreeSpeedRpm = 6782;
     // public static final double kFreeSpeedRpm = 5676;
   }
+      public static final class FieldConstants {
+        private static final AprilTagFieldLayout layout;
+        public static final double fieldLength;
+        public static final double fieldWidth;
+        static {
+            try {
+                // 載入預設場地 (例如 2025 Reefscape 或 2026)
+                layout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
+            } catch (Exception e) {
+                throw new RuntimeException("地圖載入失敗", e);
+            }
+        }
+        static {
+            AprilTagFieldLayout layout;
+            try {
+                // 自動載入當年度的預設場地 (例如 2026 場地)
+                layout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
+            } catch (Exception e) {
+                // 萬一讀不到檔案 (極少發生)，給個預設值防止程式崩潰
+                // 這裡可以填入規則書上的大約數值
+                layout = null;
+                e.printStackTrace();
+            }
+
+            if (layout != null) {
+                // 從官方資料直接抓取精確數值
+                fieldLength = layout.getFieldLength();
+                fieldWidth = layout.getFieldWidth();
+            } else {
+                // Fallback (保底數值)
+                fieldLength = 16.54;
+                fieldWidth = 8.21;
+            }
+        }
+
+        public class siteConstants {
+            // Dimensions
+            public static final double width = Units.inchesToMeters(31.8);
+            public static final double openingDistanceFromFloor = Units.inchesToMeters(28.1);
+            public static final double height = Units.inchesToMeters(7.0);
+            public static final double bumpers = Units.inchesToMeters(73.0);
+            public static final double hub = Units.inchesToMeters(47.0);
+
+            public static final Translation3d topCenterPoint = new Translation3d(
+                    layout.getTagPose(26).get().getX() + width / 2.0,
+                    fieldWidth / 2.0, // Y 軸置中
+                    height // 高度固定
+            );
+            public static final Translation3d topLeftCenterPoint = new Translation3d(
+                    layout.getTagPose(26).get().getX() + width / 2.0,
+                    (fieldWidth / 2.0) + (bumpers / 2 + hub / 2), // Y 軸置中
+                    height // 高度固定
+            );
+            public static final Translation3d topRightCenterPoint = new Translation3d(
+                    layout.getTagPose(26).get().getX() + width / 2.0,
+                    (fieldWidth / 2.0) - (bumpers / 2 + hub / 2), // Y 軸置中
+                    height // 高度固定
+            );
+        }
+    }
 }
