@@ -110,7 +110,7 @@ public class SwerveSubsystem extends SubsystemBase {
         },
         this // Subsystem 參考
     );
-    
+
     Pose2d initialPose = new Pose2d(0, 0, this.getRotation2d());
     this.poseEstimator = new SwerveDrivePoseEstimator(
         this.kinematics,
@@ -248,5 +248,8 @@ public class SwerveSubsystem extends SubsystemBase {
 
   public void addVisionMeasurement(Pose2d pose, double timestampSeconds, Matrix<N3, N1> visionMeasurementStdDevs) {
     this.poseEstimator.addVisionMeasurement(pose, timestampSeconds, visionMeasurementStdDevs);
+  }
+  public Pigeon2 getPigeon2(){
+    return this.getPigeon2();
   }
 }

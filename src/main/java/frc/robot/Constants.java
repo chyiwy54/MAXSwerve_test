@@ -6,6 +6,8 @@ package frc.robot;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
@@ -170,5 +172,8 @@ public final class Constants {
                     height // 高度固定
             );
         }
+    }
+    public static final class LimelightConstants {
+        public static final double MAX_GYRO_RATE = 1080;
     }
 }
