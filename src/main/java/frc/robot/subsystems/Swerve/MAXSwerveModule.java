@@ -82,7 +82,7 @@ public class MAXSwerveModule extends SubsystemBase {
   }
 
   public double getDrivePosition() {
-    return this.driveEncoder.getPosition();
+    return this.driveEncoder.getPosition(); 
   }
 
   // 取得轉向角度 (已扣除 Offset)

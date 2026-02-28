@@ -8,7 +8,7 @@ import frc.robot.Constants.DriveConstants;
 public class Driver extends XboxController {
     // 修改點：加入倍率 (Rate Multiplier)
     // 3.0 代表約 0.33 秒煞停。如果不乘，機器人會滑行 1.0 秒。
-    private static final double kRateMultiplier = 3.0; 
+    private static final double kRateMultiplier = 9.5; 
 
     private final SlewRateLimiter xLimiter;
     private final SlewRateLimiter yLimiter;
@@ -37,5 +37,18 @@ public class Driver extends XboxController {
         double input = MathUtil.applyDeadband(this.getRightX(), 0.05);
         // 注意：旋轉應該乘上 kMaxAngularSpeed (Radians/Sec)
         return this.turningLimiter.calculate(-input * DriveConstants.kMaxAngularSpeed);
+    }
+      public boolean isUp() {
+        return this.getRawButton(3);
+    }
+
+     public boolean isDown() {
+        return this.getRawButton(4);
+    }
+    public boolean L1() {
+        return this.getRawButton(5);
+    }
+    public boolean Lowest() {
+        return this.getRawButton(6);
     }
 }

@@ -13,6 +13,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
@@ -69,10 +70,43 @@ public class SwerveSubsystem extends SubsystemBase {
 
   private final SwerveDrivePoseEstimator poseEstimator;
 
-  private final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(DriveConstants.autoLocations);
+  private final Field2d m_field = new Field2d();
 
+  private final SwerveDriveKinematics kinematics = new SwerveDriveKinematics(DriveConstants.autoLocations);
+  StructArrayPublisher<SwerveModuleState> publisher = NetworkTableInstance.getDefault()
+      .getStructArrayTopic("MyStates", SwerveModuleState.struct).publish();
+  StructPublisher<Pose2d> realSwerve = NetworkTableInstance.getDefault()
+      .getStructTopic("realSwervepose", Pose2d.struct).publish();
+  StructPublisher<Pose2d> simPublisher = NetworkTableInstance.getDefault()
+      .getStructTopic("simSwerveposed", Pose2d.struct).publish();
+
+  private Pose2d simOdometry = new Pose2d();
+  private double posedX = 0;
+  private double posedY = 0;
+  private double posedRot = 0;
+  private double timeFromLastUpdate = 0;
+  private double lastSimTime = 0;
 
   public SwerveSubsystem() {
+    // 1. 新增：陀螺儀開機延遲保護 (等待 1 秒確保 Pigeon2 暖機完成後再歸零)
+    new Thread(() -> {
+      try {
+        Thread.sleep(1000);
+        zeroHeading();
+      } catch (Exception e) {
+      }
+    }).start();
+
+    // 2. 順序調換：必須先初始化 poseEstimator！
+    // 這樣後面的 AutoBuilder 呼叫 getPose 時才不會抓到空值而當機
+    Pose2d initialPose = new Pose2d(0, 0, this.getRotation2d());
+    this.poseEstimator = new SwerveDrivePoseEstimator(
+        this.kinematics,
+        this.getRotation2d(),
+        this.getModulePositions(),
+        initialPose);
+
+    // 3. 讀取 PathPlanner 的 GUI 設定
     RobotConfig config = null;
     try {
       config = RobotConfig.fromGUISettings();
@@ -80,33 +114,46 @@ public class SwerveSubsystem extends SubsystemBase {
       e.printStackTrace();
     }
 
+    // 4. 設定新版 AutoBuilder
     AutoBuilder.configure(
-        this::getPose, // 告訴 AutoBuilder 機器人在哪 (Pose2d)
-        this::resetOdometry, // 告訴 AutoBuilder 如何重設位置
-        this::getRobotRelativeSpeeds, // ❌ 你原本沒有這個方法，請看下面第 3 點新增
-        (speeds, feedforwards) -> autorunVelocity(speeds), // ✅ 使用你寫好的 robot-relative 驅動方法
+        this::getPose, // 現在這裡安全了，抓得到剛剛建立的 poseEstimator！
+        this::resetOdometry,
+        this::getRobotRelativeSpeeds,
+        (speeds, feedforwards) -> autorunVelocity(speeds), // 相容新版寫法
         new PPHolonomicDriveController(
-            new PIDConstants(5.0, 0.0, 0.0), // Translation PID (請依照實際情況調整)
-            new PIDConstants(5.0, 0.0, 0.0) // Rotation PID (請依照實際情況調整)
-        ),
+            new PIDConstants(5.00, 0.0, 0.105),//0.105
+            new PIDConstants(0.5, 0.0, 0.0)),
         config,
         () -> {
-          // 自動判斷是否為紅隊 (路徑翻轉)
           var alliance = DriverStation.getAlliance();
           if (alliance.isPresent()) {
             return alliance.get() == DriverStation.Alliance.Red;
           }
           return false;
         },
-        this // Subsystem 參考
-    );
+        this);
 
-    Pose2d initialPose = new Pose2d(0, 0, this.getRotation2d());
-    this.poseEstimator = new SwerveDrivePoseEstimator(
-        this.kinematics,
-        this.getRotation2d(),
-        this.getModulePositions(),
-        initialPose);
+    // 5. 完美保留你寫的 SmartDashboard 數據區塊
+    SmartDashboard.putData("SwerveDrive", new Sendable() {
+      @Override
+      public void initSendable(SendableBuilder builder) {
+        builder.setSmartDashboardType("SwerveDrive");
+
+        builder.addDoubleProperty("FrontLeft Posisiton", () -> frontLeft.getPosition().angle.getRadians(), null);
+        builder.addDoubleProperty("FrontLeft Velocity", () -> frontLeft.getState().speedMetersPerSecond, null);
+
+        builder.addDoubleProperty("FrontRight Posisiton", () -> frontRight.getPosition().angle.getRadians(), null);
+        builder.addDoubleProperty("FrontRight Velocity", () -> frontRight.getState().speedMetersPerSecond, null);
+
+        builder.addDoubleProperty("BackLeft Posisiton", () -> backLeft.getPosition().angle.getRadians(), null);
+        builder.addDoubleProperty("BackLeft Velocity", () -> backLeft.getState().speedMetersPerSecond, null);
+
+        builder.addDoubleProperty("BackRight Posisiton", () -> backRight.getPosition().angle.getRadians(), null);
+        builder.addDoubleProperty("BackRight Velocity", () -> backRight.getState().speedMetersPerSecond, null);
+
+        builder.addDoubleProperty("Robot Heading", () -> getRotation2d().getRadians(), null);
+      }
+    });
   }
 
   public ChassisSpeeds getRobotRelativeSpeeds() {
@@ -137,17 +184,39 @@ public class SwerveSubsystem extends SubsystemBase {
     var yaw = gyro.getYaw();
     yaw.refresh();
     double rad = yaw.getValue().in(Radians);
-    // rad = -rad; // 視情況取負號
+
+    // 關鍵修正：
+    // 如果是紅色聯盟，我們需要把角度加上 180 度，讓機器人的前方對準場地的 X 軸正方向
+    var alliance = DriverStation.getAlliance();
+    if (alliance.isPresent() && alliance.get() == DriverStation.Alliance.Red) {
+      return new Rotation2d(rad).plus(Rotation2d.fromDegrees(180));
+    }
+
     return new Rotation2d(rad);
   }
 
-    public Pose2d getPose() {
-        return poseEstimator.getEstimatedPosition();
+  public Pose2d getPose() {
+    // 🌟 關鍵：模擬時讀取虛擬座標
+    if (Robot.isSimulation()) {
+      return this.simOdometry;
     }
+    return poseEstimator.getEstimatedPosition();
+  }
 
   @Override
   public void periodic() {
+    poseEstimator.update(
+        getRotation2d(),
+        getModulePositions());
     getPose();
+
+    SmartDashboard.putData("Field", m_field);
+    m_field.setRobotPose(getPose());
+
+    publisher.set(getModuleStates());
+    simPublisher.set(simOdometry);
+    realSwerve.set(poseEstimator.getEstimatedPosition());
+
   }
 
   public void stopModules() {
@@ -159,8 +228,16 @@ public class SwerveSubsystem extends SubsystemBase {
 
   public void autorunVelocity(ChassisSpeeds robotRelativeSpeeds) {
     ChassisSpeeds discreteSpeeds = ChassisSpeeds.discretize(robotRelativeSpeeds, 0.02);
+    // --- 新增：自動階段的模擬計算 ---
+    if (Robot.isSimulation()) {
+      // 💡 注意：PathPlanner 傳來的是「機器人相對速度」，但場地模擬需要「場地相對速度」
+      // 所以我們先把它轉換回場地視角，再丟給 simDrive 計算！
+      ChassisSpeeds fieldSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(discreteSpeeds, getRotation2d());
+      simDrive(fieldSpeeds.vxMetersPerSecond, fieldSpeeds.vyMetersPerSecond, fieldSpeeds.omegaRadiansPerSecond);
+    }
     SwerveModuleState[] moduleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(discreteSpeeds);
     this.setModuleStates(moduleStates);
+
   }
 
   public void setModuleStates(SwerveModuleState[] desiredStates) {
@@ -170,6 +247,7 @@ public class SwerveSubsystem extends SubsystemBase {
     frontRight.setDesiredState(desiredStates[1]);
     backLeft.setDesiredState(desiredStates[2]);
     backRight.setDesiredState(desiredStates[3]);
+
   }
 
   public SwerveModuleState[] getModuleStates() {
@@ -181,10 +259,16 @@ public class SwerveSubsystem extends SubsystemBase {
     };
   }
 
-    public void resetOdometry(Pose2d pose) {
-        poseEstimator.resetPose(pose);
+  public void resetOdometry(Pose2d pose) {
+    // 🌟 關鍵：重設位置時，虛擬變數和真實里程計都要一起更新
+    if (Robot.isSimulation()) {
+      this.simOdometry = pose;
+      this.posedX = pose.getX();
+      this.posedY = pose.getY();
+      this.posedRot = pose.getRotation().getRadians();
     }
-
+    poseEstimator.resetPosition(getRotation2d(), getModulePositions(), pose);
+  }
 
   public void drive(double xSpeed, double ySpeed, double rot) {
     xSpeed = MathUtil.applyDeadband(xSpeed, 0.05);
@@ -194,6 +278,12 @@ public class SwerveSubsystem extends SubsystemBase {
     double xSpeedDelivered = xSpeed * DriveConstants.kMaxSpeedMetersPerSecond;
     double ySpeedDelivered = ySpeed * DriveConstants.kMaxSpeedMetersPerSecond;
     double rotDelivered = rot * DriveConstants.kMaxAngularSpeed;
+
+    // --- 新增：搖桿開車時的模擬計算 ---
+    if (Robot.isSimulation()) {
+      // 搖桿傳進來的通常是場地相對速度 (Field-Relative)
+      simDrive(xSpeedDelivered, ySpeedDelivered, rotDelivered);
+    }
 
     // 2. 移除三元運算子 (? :)，直接使用 fromFieldRelativeSpeeds
     var swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(
@@ -207,12 +297,7 @@ public class SwerveSubsystem extends SubsystemBase {
     SwerveDriveKinematics.desaturateWheelSpeeds(
         swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
 
-    // 注意：如果你已經換成新的 SwerveModule 類別，這裡要用 .setState()
-    // 如果還是舊的 MAXSwerveModule，則維持 .setDesiredState()
-    frontLeft.setDesiredState(swerveModuleStates[0]);
-    frontRight.setDesiredState(swerveModuleStates[1]);
-    backLeft.setDesiredState(swerveModuleStates[2]);
-    backRight.setDesiredState(swerveModuleStates[3]);
+    this.setModuleStates(swerveModuleStates);
   }
 
   public void resetEncoders() {
@@ -225,7 +310,26 @@ public class SwerveSubsystem extends SubsystemBase {
   public void addVisionMeasurement(Pose2d pose, double timestampSeconds, Matrix<N3, N1> visionMeasurementStdDevs) {
     this.poseEstimator.addVisionMeasurement(pose, timestampSeconds, visionMeasurementStdDevs);
   }
-  public Pigeon2 getPigeon2(){
-    return this.getPigeon2();
+  public Pigeon2 getPigeon2() {
+    return this.gyro;
   }
+
+  // --- 新增：模擬環境專用的運動學計算 ---
+  public void simDrive(double fieldXSpeed, double fieldYSpeed, double rotSpeed) {
+    double currentTime = Timer.getFPGATimestamp();
+    // 避免第一次啟動時時間差過大
+    if (lastSimTime == 0)
+      lastSimTime = currentTime;
+
+    double dt = currentTime - lastSimTime;
+    lastSimTime = currentTime;
+
+    // 積分計算：速度 * 時間差 = 位移
+    this.posedX += fieldXSpeed * dt;
+    this.posedY += fieldYSpeed * dt;
+    this.posedRot += rotSpeed * dt;
+
+    this.simOdometry = new Pose2d(this.posedX, this.posedY, new Rotation2d(this.posedRot));
+  }
+
 }

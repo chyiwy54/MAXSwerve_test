@@ -1,0 +1,84 @@
+{
+ "name":"3",
+ "version":2,
+ "type":"Swerve",
+ "variables":{
+  "expressions":{},
+  "poses":{}
+ },
+ "config":{
+  "frontLeft":{
+   "x":{
+    "exp":"11 in",
+    "val":0.2794
+   },
+   "y":{
+    "exp":"11 in",
+    "val":0.2794
+   }
+  },
+  "backLeft":{
+   "x":{
+    "exp":"-11 in",
+    "val":-0.2794
+   },
+   "y":{
+    "exp":"11 in",
+    "val":0.2794
+   }
+  },
+  "mass":{
+   "exp":"116.624536 lbs",
+   "val":52.89999968439032
+  },
+  "inertia":{
+   "exp":"3.03 kg m ^ 2",
+   "val":3.03
+  },
+  "gearing":{
+   "exp":"3.56",
+   "val":3.56
+  },
+  "radius":{
+   "exp":"1.5 in",
+   "val":0.038099999999999995
+  },
+  "vmax":{
+   "exp":"6784 RPM",
+   "val":710.4188187317718
+  },
+  "tmax":{
+   "exp":"3.6 N * m",
+   "val":3.6
+  },
+  "cof":{
+   "exp":"1.2",
+   "val":1.2
+  },
+  "bumper":{
+   "front":{
+    "exp":"16.93 in",
+    "val":0.430022
+   },
+   "side":{
+    "exp":"16.93 in",
+    "val":0.430022
+   },
+   "back":{
+    "exp":"16.93 in",
+    "val":0.430022
+   }
+  },
+  "differentialTrackWidth":{
+   "exp":"22 in",
+   "val":0.5588
+  }
+ },
+ "generationFeatures":[],
+ "codegen":{
+  "root":"..\\C:\\Users\\SDHS-FRC\\Desktop\\2026 code\\MAXSwerve_test\\src\\main\\deploy\\choreo",
+  "genVars":true,
+  "genTrajData":true,
+  "useChoreoLib":true
+ }
+}
