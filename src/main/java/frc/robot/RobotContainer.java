@@ -72,7 +72,6 @@ public class RobotContainer {
                 this.intake.setDefaultCommand(new IntakeCmd(
                                 this.intake,
                                 this.controller::isIntake,
-                                this.controller::isIntake2,
                                 this.controller::isOuttake));
 
                 this.elevator.setDefaultCommand(new ElevatorCmd(

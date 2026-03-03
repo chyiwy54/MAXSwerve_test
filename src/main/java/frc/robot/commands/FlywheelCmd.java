@@ -8,7 +8,7 @@ import frc.robot.subsystems.Flywheel;
 
 public class FlywheelCmd extends Command {
     private final Flywheel flywheel;
-    private final Supplier<Boolean> isFly; // 例如：controller::isShoot 或 controller::isFlywheel
+    private final Supplier<Boolean> isFly; 
 
     public FlywheelCmd(
             Flywheel flywheel,

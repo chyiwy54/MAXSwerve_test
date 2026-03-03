@@ -13,7 +13,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 
 import frc.robot.Constants.DriveConstants;
 // 底盤相關常數，例如最大速度、最大角速度
-import frc.robot.Robot;
 import frc.robot.joystick.Driver;
 // 你自訂的 Driver 控制器封裝（XboxController）
 

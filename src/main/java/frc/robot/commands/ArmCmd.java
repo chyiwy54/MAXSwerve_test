@@ -23,8 +23,6 @@ public class ArmCmd extends Command {
         int pov = povSupplier.get();
         
         targetPosition = arm.getTargetPosition();
-        // 每一週期 (20ms) 如果按著，就增減目標位置
-        // 這裡的 0.5 是移動速度，你可以根據需求調整
         if (pov == 0)// && targetPosition >= (Constants.ControllerConstants.ARM_UP_LIMIT))
         {
             targetPosition -= stepSize; 
